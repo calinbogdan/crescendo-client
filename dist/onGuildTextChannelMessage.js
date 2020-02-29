@@ -10,10 +10,13 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-var TriggerRepository_1 = require("./TriggerRepository");
-var sendTextChannelMessage_1 = require("./actions/sendTextChannelMessage");
-var sendDirectMessage_1 = require("./actions/sendDirectMessage");
+var sendTextChannelMessage_1 = __importDefault(require("./actions/sendTextChannelMessage"));
+var sendDirectMessage_1 = __importDefault(require("./actions/sendDirectMessage"));
+var TriggersCache_1 = __importDefault(require("./TriggersCache"));
 var eventsMap = {
     "SendTextChannelMessage": sendTextChannelMessage_1.default,
     "SendDirectMessage": sendDirectMessage_1.default
@@ -25,16 +28,15 @@ exports.default = (function (message) {
     var _a;
     /* I know for sure it's a guild message in a text channel, then
     I should look whether there's a trigger registered for this kind of event. */
-    var triggerRepo = TriggerRepository_1.default.getInstance();
     // check if the Guild is even registered in the trigger map (we assume that we're good coders and if it is not, it means that someone hasn't paid something)
-    var guildTriggerMap = triggerRepo.triggerMap[message.guild.id];
+    var guildTriggerMap = TriggersCache_1.default.instance.guilds[message.guild.id].triggers;
     // check if the guild has the trigger we're looking for
     var textChannelMessageActions = (_a = guildTriggerMap) === null || _a === void 0 ? void 0 : _a.message;
     if (textChannelMessageActions) {
         // if it does, I guess... trigger them all?
         textChannelMessageActions.forEach(function (action) {
             var _a, _b;
-            (_b = (_a = eventsMap)[action.actionType]) === null || _b === void 0 ? void 0 : _b.call(_a, message, __assign(__assign({}, action.actionPayload), { guildId: message.guild.id }));
+            (_b = (_a = eventsMap)[action.type]) === null || _b === void 0 ? void 0 : _b.call(_a, message, __assign(__assign({}, action), { guildId: message.guild.id }));
         });
     }
 });

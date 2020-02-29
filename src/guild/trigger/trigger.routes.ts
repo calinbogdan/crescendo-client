@@ -1,29 +1,43 @@
 import { Router } from "express";
-import TriggerRepository from "../../TriggerRepository";
+import { getConnection, getRepository } from "typeorm";
+import { Trigger } from "./trigger.entity";
+import { Guild } from "../guild.entity";
+import TriggersCache from "../../TriggersCache";
 
 const router = Router({
     mergeParams: true
 });
 
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
     const guildId = req.params.guildId;
-    res.send(TriggerRepository.getInstance().triggerMap[guildId]);
+    res.send(await getRepository(Guild).findOne({ discordId: guildId }, { relations: ["triggers"] }));
+    
 })
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
     const guildId = req.params.guildId;
-    const trigger = req.body;
+    const { type, payload } = req.body;    
 
-    const triggerRepo = TriggerRepository.getInstance();
+    const guildRepo = getRepository(Guild);
+    const guild = await guildRepo.findOne({ discordId: guildId }, { relations: ["triggers"]});
 
-    const triggersArrayForSaidTrigger = triggerRepo.triggerMap[guildId][trigger.triggerType];
-
-    if (!triggersArrayForSaidTrigger) {
-        triggerRepo.triggerMap[guildId][trigger.triggerType] = [trigger];
-    } else {
-        triggersArrayForSaidTrigger.push(trigger);
+    if (!guild) {
+        return res.sendStatus(400);
     }
 
+    const trigger = new Trigger();
+
+    trigger.payload = payload;
+    trigger.type = type;
+    trigger.guild = guild;
+
+    await getRepository(Trigger).save(trigger);
+
+    const triggersOfCurrentType = TriggersCache.instance.guilds[guildId].triggers[type];
+    if (!triggersOfCurrentType) {
+        TriggersCache.instance.guilds[guildId].triggers[type] = [];
+    }
+    TriggersCache.instance.guilds[guildId].triggers[type].push(trigger.payload);
     res.sendStatus(201);
 });
 

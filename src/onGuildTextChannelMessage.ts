@@ -1,7 +1,8 @@
-import TriggerRepository from "./TriggerRepository";
+
 import { Message } from "discord.js";
 import sendTextChannelMessage from "./actions/sendTextChannelMessage";
 import sendDirectMessage from "./actions/sendDirectMessage";
+import TriggersCache from "./TriggersCache";
 
 
 const eventsMap = {
@@ -15,18 +16,16 @@ const eventsMap = {
 export default (message: Message) => {
     /* I know for sure it's a guild message in a text channel, then 
     I should look whether there's a trigger registered for this kind of event. */
-    const triggerRepo = TriggerRepository.getInstance();
-
     // check if the Guild is even registered in the trigger map (we assume that we're good coders and if it is not, it means that someone hasn't paid something)
-    const guildTriggerMap = triggerRepo.triggerMap[message.guild.id];
+    const guildTriggerMap = TriggersCache.instance.guilds[message.guild.id].triggers;
 
     // check if the guild has the trigger we're looking for
     const textChannelMessageActions = guildTriggerMap?.message;
     if (textChannelMessageActions) {
         // if it does, I guess... trigger them all?
         textChannelMessageActions.forEach(action => {
-            eventsMap[action.actionType]?.(message, {
-                ...action.actionPayload,
+            eventsMap[action.type]?.(message, {
+                ...action,
                 guildId: message.guild.id
             });
         });

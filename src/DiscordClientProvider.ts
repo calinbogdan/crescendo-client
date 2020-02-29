@@ -1,8 +1,11 @@
 import { Client, DMChannel } from "discord.js";
 import { secret } from "./config.json";
-import TriggerRepository from "./TriggerRepository.js";
 import sendTextChannelMessage from "./actions/sendTextChannelMessage.js";
 import onGuildTextChannelMessage from "./onGuildTextChannelMessage.js";
+import { getConnection, getRepository, createQueryBuilder } from "typeorm";
+import { Guild } from "./guild/guild.entity.js";
+import TriggersCache from "./TriggersCache.js";
+import { Trigger } from "./guild/trigger/trigger.entity.js";
 
 export default class DiscordClientProvider {
     private static instance: Client;
@@ -14,18 +17,39 @@ export default class DiscordClientProvider {
         return DiscordClientProvider.instance;
     }
 
-    public static init() {
+    public static async init() {
         DiscordClientProvider.instance = new Client();
         const client = DiscordClientProvider.instance;
         
-        client.on('ready', () => {
+        client.on('ready', async () => {
             console.log(`Logged in as ${client.user.tag}`);
             console.log('These are the servers that I am serving: ', client.guilds.map(g => g.name));
             
-            const triggerRepo = TriggerRepository.getInstance();
             client.guilds.forEach(guild => {
-                triggerRepo.triggerMap[guild.id] = {};
+                TriggersCache.instance.guilds[guild.id] = {
+                    triggers: {}
+                };
             });
+
+            const guildIds = client.guilds.map(guild => guild.id);
+
+            const guilds = await createQueryBuilder()
+                .select("guild").from(Guild, "guild")
+                .leftJoinAndSelect("guild.triggers", "trigger")
+                .where("guild.discordId IN (:...guildIds)", { guildIds })
+                .getMany();
+            
+            guilds.forEach(guild => {
+                guild.triggers.forEach(trigger => {
+                    if (!TriggersCache.instance.guilds[guild.discordId].triggers[trigger.type]) {
+                        TriggersCache.instance.guilds[guild.discordId].triggers[trigger.type] = [];
+                    }
+                    TriggersCache.instance.guilds[guild.discordId].triggers[trigger.type].push(trigger.payload);
+                });
+            });
+
+            const triggersCacheGuildsObj = TriggersCache.instance.guilds;
+            const caca = triggersCacheGuildsObj;
         });
         
         client.on('message', message => {
@@ -36,22 +60,25 @@ export default class DiscordClientProvider {
                     onGuildTextChannelMessage(message);
                 }
             }
+        });
+        
+        // DO NOT TOUCH UNDER THIS
+        client.on("guildCreate", ({ id }) => {
+            const guild = new Guild();
+            guild.discordId = id;
 
-            // if (!msg.author.bot) {
-            //     const triggerRepo = TriggerRepository.getInstance();
-            //     // console.log(triggerRepo.getTriggersForGuild(msg.guild.id)['message']);
-
-            //     const { channelId, text } = triggerRepo.getTriggersForGuild(msg.guild.id)['message'];
-            //     if (channelId && text) {
-            //         sendTextChannelMessage(msg.guild.id, channelId, text);
-            //     }
-
-            // }
+            getConnection().getRepository(Guild).save(guild);
         });
 
+        client.on("guildDelete", ({ id }) => {
+            getConnection().getRepository(Guild).delete({ discordId: id });
+        })
+
         
-        client.login(secret);
+        return client.login(secret);
     }
+
+    
 
     protected constructor() {}
 };
