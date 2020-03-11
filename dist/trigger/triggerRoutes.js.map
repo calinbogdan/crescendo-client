@@ -1,1 +1,0 @@
-{"version":3,"file":"triggerRoutes.js","sourceRoot":"","sources":["../../src/trigger/triggerRoutes.js"],"names":[],"mappings":";;AAAA,mCAAiC;AACjC,0DAAqD;AAErD,IAAM,MAAM,GAAG,gBAAM,EAAE,CAAC;AAExB,MAAM,CAAC,GAAG,CAAC,GAAG,EAAE,UAAC,GAAG,EAAE,GAAG;IACrB,GAAG,CAAC,IAAI,CAAC,2BAAiB,CAAC,WAAW,EAAE,CAAC,UAAU,CAAC,CAAC;AACzD,CAAC,CAAC,CAAC;AAEH,kBAAe,MAAM,CAAC"}
